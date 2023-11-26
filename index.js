@@ -10,38 +10,47 @@ const io = require('socket.io')(server, {
 
 let users = [];
 
+app.get('/test',(req, res) => {
+    res.send('This is testing');
+});
+
 io.on('connection', (socket) => {
     console.log('Someone is connect');
-    socket.on('joinRoom', (joinRoomData) => {
-        socket.join(joinRoomData.roomId);
+
+    socket.on('joinRoom', ({ roomId, name, profile }) => {
+        socket.join(roomId);
+
         users.push({
             id: socket.id,
-            name: joinRoomData.name,
-            profile: joinRoomData.profile,
-            roomId: joinRoomData.roomId
+            name,
+            profile,
+            roomId
         });
+
         socket.on('message', (data) => {
-            io.sockets.to(joinRoomData.roomId).emit('message', data);
+            io.sockets.to(roomId).emit('message', data);
         });
 
         socket.on('image', (data) => {
-            io.sockets.to(joinRoomData.roomId).emit('image', data);
+            io.sockets.to(roomId).emit('image', data);
         });
 
-        socket.broadcast.to(joinRoomData.roomId).emit('joining', joinRoomData.name);
-    })
+        socket.broadcast.to(roomId).emit('joining', name);
+    });
 
 
     socket.on('disconnect', () => {
-        const user = users.find(e => e.id == socket.id);
-        if (user) {
-            let index = users.findIndex(e => e.id == user.id);
+       const index = users.findIndex(e => e.id === socket.id);
+        if (index !== -1) {
+            const user = users[index];
             users.splice(index, 1);
             io.sockets.to(user.roomId).emit('leaving', user.name);
         } else {
             console.log('not in room');
         }
     })
+
 });
 
-server.listen(3000);
+const port = process.env.PORT || 3000;
+server.listen(port,() => console.log(`Listening on port ${port}`));
